@@ -36,7 +36,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="FFGLBrightness.h">
-      <Filter>Source Files</Filter>
+      <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
