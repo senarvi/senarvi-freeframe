@@ -9,15 +9,15 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 static CFFGLPluginInfo PluginInfo(
-	FFGLBrightness::CreateInstance,	// Create method
-	"GLPT",								// Plugin unique ID
-	"FFGLBrightness",     // Plugin name											
-	1,						   			// API major version number 													
-	000,								  // API minor version number	
-	1,										// Plugin major version number
-	000,									// Plugin minor version number
-	FF_EFFECT,						// Plugin type
-	"Sample FFGL Brightness plugin",	// Plugin description
+	FFGLBrightness::CreateInstance,     // Create method
+	"GLPT",                             // Plugin unique ID
+	"FFGLBrightness",                   // Plugin name											
+	1,                                  // API major version number 													
+	000,                                // API minor version number	
+	1,                                  // Plugin major version number
+	000,                                // Plugin minor version number
+	FF_EFFECT,                          // Plugin type
+	"Sample FFGL Brightness plugin",    // Plugin description
 	"by Trey Harrison - www.harrisondigitalmedia.com" // About
 	);
 
@@ -40,8 +40,8 @@ FFGLBrightness::FFGLBrightness()
 
 FFGLBrightness::~FFGLBrightness()
 {
-
 }
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 //  Methods
 ////////////////////////////////////////////////////////////////////////////////////////////////////

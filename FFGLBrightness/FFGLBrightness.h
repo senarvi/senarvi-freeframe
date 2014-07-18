@@ -14,9 +14,9 @@ public:
 	// FreeFrame plugin methods
 	///////////////////////////////////////////////////
 
-	DWORD	SetParameter(const SetParameterStruct* pParam);
-	DWORD	GetParameter(DWORD dwIndex);
-	DWORD	ProcessOpenGL(ProcessOpenGLStruct* pGL);
+	DWORD SetParameter(const SetParameterStruct* pParam);
+	DWORD GetParameter(DWORD dwIndex);
+	DWORD ProcessOpenGL(ProcessOpenGLStruct* pGL);
 
 	///////////////////////////////////////////////////
 	// Factory method
