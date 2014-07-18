@@ -34,7 +34,7 @@ using namespace std;
 
 
 // Buffer used by the default implementation of getParameterDisplay
-static char s_DisplayValue[5];
+static char s_DisplayValue[6];
 
 
 ////////////////////////////////////////////////////////
@@ -78,8 +78,7 @@ char* CFreeFrameGLPlugin::GetParameterDisplay(DWORD dwIndex)
 			ostringstream oss;
 			oss << *reinterpret_cast<float*>(&dwValue);
 			string::size_type num_copied = oss.str().copy(s_DisplayValue, 5);
-			if (num_copied < 5)
-				s_DisplayValue[4] = '\0';
+			s_DisplayValue[num_copied] = '\0';
 			return s_DisplayValue;
 		}
 	}
