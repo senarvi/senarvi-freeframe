@@ -23,8 +23,9 @@ public:
 
 	void compileShader();
 	void initializeTexture(GLuint texture, GLuint width, GLuint height) const;
-	void render() const;
+	void renderToTexture(GLuint texture) const;
 	void copyFramebuffer(GLuint src, GLuint dst) const;
+	void clearState();
 
 	// FreeFrame plugin methods
 
@@ -42,13 +43,14 @@ protected:
 	float threshold_;
 
 	GLuint shaderProgram_;
-
 	GLuint framebuffer_;
 	GLuint textures_[2];
+	int stateTextureIndex_;
+	int outputTextureIndex_;
 
 	// locations of the global GLSL variables
-	GLint inputTextureLocation_;
-	GLint stateTextureLocation_;
+	GLint inputSamplerLocation_;
+	GLint stateSamplerLocation_;
 	GLint thresholdLocation_;
 };
 

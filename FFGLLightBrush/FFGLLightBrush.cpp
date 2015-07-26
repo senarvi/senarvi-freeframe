@@ -1,10 +1,12 @@
 #include <cassert>
 #include <vector>
+#include <algorithm>
 #include <GL/glew.h>
 #include <FFGL.h>
 #include "FFGLLightBrush.h"
 
 #define FFPARAM_THRESHOLD (0)
+#define FFPARAM_CLEAR (1)
 
 using namespace std;
 
@@ -52,16 +54,6 @@ static const char * fragmentShaderSource =
 "    vec4 scaledStateColor = stateColor * grayScaleWeights;"
 "    float stateLuminance = scaledStateColor.r + scaledStateColor.g + scaledStateColor.b;"
 "    if (inputLuminance >= stateLuminance) {"
-"        gl_FragColor = red;"
-"    }"
-"    else if (stateLuminance >= threshold) {"
-"        gl_FragColor = green;"
-"    } else {"
-"        gl_FragColor = blue;"
-"    }"
-"}";
-/*
-"    if (inputLuminance >= stateLuminance) {"
 "        gl_FragColor = inputColor;"
 "    }"
 "    else if (stateLuminance >= threshold) {"
@@ -70,7 +62,6 @@ static const char * fragmentShaderSource =
 "        gl_FragColor = inputColor;"
 "    }"
 "}";
-*/
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 //  Constructor and destructor
@@ -86,6 +77,7 @@ FFGLLightBrush::FFGLLightBrush()
 	// Parameters
 	threshold_ = 0.5f;
 	SetParamInfo(FFPARAM_THRESHOLD, "Threshold", FF_TYPE_STANDARD, threshold_);
+	SetParamInfo(FFPARAM_CLEAR, "Clear", FF_TYPE_EVENT, false);
 }
 
 FFGLLightBrush::~FFGLLightBrush()
@@ -127,7 +119,7 @@ void FFGLLightBrush::compileShader()
 void FFGLLightBrush::initializeTexture(GLuint texture, GLuint width, GLuint height) const
 {
 	glBindTexture(GL_TEXTURE_2D, texture);
-	vector<GLubyte> data(width * height * 4, 0x7f);
+	vector<GLubyte> data(width * height * 4, 0x00);
 	glTexImage2D(GL_TEXTURE_2D,
 		0,
 		GL_RGBA8,
@@ -141,8 +133,18 @@ void FFGLLightBrush::initializeTexture(GLuint texture, GLuint width, GLuint heig
 	glBindTexture(GL_TEXTURE_2D, 0);
 }
 
-void FFGLLightBrush::render() const
+void FFGLLightBrush::renderToTexture(GLuint texture) const
 {
+	// Bind output texture to the framebuffer object.
+	glBindFramebuffer(GL_FRAMEBUFFER, framebuffer_);
+	glFramebufferTexture2D(
+		GL_FRAMEBUFFER,
+		GL_COLOR_ATTACHMENT0,
+		GL_TEXTURE_2D,
+		textures_[outputTextureIndex_],
+		0);
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
 	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, framebuffer_);
 	glViewport(viewport_.x, viewport_.y, viewport_.width, viewport_.height);
 	glCallList(displayList_);
@@ -159,6 +161,25 @@ void FFGLLightBrush::copyFramebuffer(GLuint src, GLuint dst) const
 		GL_COLOR_BUFFER_BIT, GL_NEAREST);
 	glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
 	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+}
+
+void FFGLLightBrush::clearState()
+{
+	// Bind state texture to the framebuffer object.
+	glBindFramebuffer(GL_FRAMEBUFFER, framebuffer_);
+	glFramebufferTexture2D(
+		GL_FRAMEBUFFER,
+		GL_COLOR_ATTACHMENT0,
+		GL_TEXTURE_2D,
+		textures_[stateTextureIndex_],
+		0);
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+	glClearColor(0, 0, 0, 1);
+	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, framebuffer_);
+	glClear(GL_COLOR_BUFFER_BIT);
+	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+	glClearColor(0, 0, 0, 0);
 }
 
 DWORD FFGLLightBrush::InitGL(const FFGLViewportStruct *vp)
@@ -183,23 +204,28 @@ DWORD FFGLLightBrush::InitGL(const FFGLViewportStruct *vp)
 	// To pass data to the shader, we need the location of the uniforms (global
 	// variables defined in the shader code), and then call one of the
 	// glUniform* methods.
-	inputTextureLocation_ = glGetUniformLocation(shaderProgram_, "inputSampler");
-	assert(inputTextureLocation_ != -1);
-	stateTextureLocation_ = glGetUniformLocation(shaderProgram_, "stateSampler");
-	assert(stateTextureLocation_ != -1);
+	inputSamplerLocation_ = glGetUniformLocation(shaderProgram_, "inputSampler");
+	assert(inputSamplerLocation_ != -1);
+	stateSamplerLocation_ = glGetUniformLocation(shaderProgram_, "stateSampler");
+	assert(stateSamplerLocation_ != -1);
 	thresholdLocation_ = glGetUniformLocation(shaderProgram_, "threshold");
 	assert(thresholdLocation_ != -1);
 
 	// The input and state textures are always bound to texture units 0 and 1
 	// respectively.
 	glUseProgram(shaderProgram_);
-	glUniform1i(inputTextureLocation_, 0);
-	glUniform1i(stateTextureLocation_, 1);
+	glUniform1i(inputSamplerLocation_, 0);
+	glUniform1i(stateSamplerLocation_, 1);
 	glUseProgram(0);
 
 	// Initialize the textures with correct size.
 	initializeTexture(textures_[0], viewport_.width, viewport_.height);
 	initializeTexture(textures_[1], viewport_.width, viewport_.height);
+
+	// Start with texture 0 being the state and 1 being the output, then
+	// switch.
+	stateTextureIndex_ = 0;
+	outputTextureIndex_ = 1;
 
 	// Create a list of operations for drawing a quad that fills the entire
 	// viewport.
@@ -258,14 +284,9 @@ DWORD FFGLLightBrush::ProcessOpenGL(ProcessOpenGLStruct *pGL)
 
 	// Bind state texture to texture unit 1.
 	glActiveTexture(GL_TEXTURE1);
-	glBindTexture(GL_TEXTURE_2D, textures_[0]);
+	glBindTexture(GL_TEXTURE_2D, textures_[stateTextureIndex_]);
 
-	// Bind output texture to the framebuffer object.
-	glBindFramebuffer(GL_FRAMEBUFFER, framebuffer_);
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, textures_[1], 0);
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-	render();
+	renderToTexture(textures_[outputTextureIndex_]);
 
 	glActiveTexture(GL_TEXTURE1);
 	glBindTexture(GL_TEXTURE_2D, 0);
@@ -278,6 +299,8 @@ DWORD FFGLLightBrush::ProcessOpenGL(ProcessOpenGLStruct *pGL)
 	// Copy the texture to host framebuffer object.
 	copyFramebuffer(framebuffer_, pGL->HostFBO);
 
+	swap(stateTextureIndex_, outputTextureIndex_);
+
 	return FF_SUCCESS;
 }
 
@@ -286,7 +309,6 @@ DWORD FFGLLightBrush::GetParameter(DWORD dwIndex)
 	DWORD dwRet;
 
 	switch (dwIndex) {
-
 	case FFPARAM_THRESHOLD:
 		//sizeof(DWORD) must == sizeof(float)
 		*((float *)(unsigned)(&dwRet)) = threshold_;
@@ -300,12 +322,16 @@ DWORD FFGLLightBrush::GetParameter(DWORD dwIndex)
 DWORD FFGLLightBrush::SetParameter(const SetParameterStruct* pParam)
 {
 	if (pParam != NULL) {
-
 		switch (pParam->ParameterNumber) {
-
 		case FFPARAM_THRESHOLD:
 			//sizeof(DWORD) must == sizeof(float)
 			threshold_ = *((float *)(unsigned)&(pParam->NewParameterValue));
+			break;
+
+		case FFPARAM_CLEAR:
+			if (pParam->NewParameterValue) {
+				clearState();
+			}
 			break;
 
 		default:
@@ -313,7 +339,6 @@ DWORD FFGLLightBrush::SetParameter(const SetParameterStruct* pParam)
 		}
 
 		return FF_SUCCESS;
-
 	}
 
 	return FF_FAIL;
