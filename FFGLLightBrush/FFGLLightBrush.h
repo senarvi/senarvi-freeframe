@@ -41,6 +41,7 @@ protected:
 
 	// parameters
 	float threshold_;
+	float darkening_;
 
 	GLuint shaderProgram_;
 	GLuint framebuffer_;
@@ -52,6 +53,7 @@ protected:
 	GLint inputSamplerLocation_;
 	GLint stateSamplerLocation_;
 	GLint thresholdLocation_;
+	GLint darkeningLocation_;
 };
 
 

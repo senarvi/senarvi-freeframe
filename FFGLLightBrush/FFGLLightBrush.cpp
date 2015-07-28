@@ -6,7 +6,8 @@
 #include "FFGLLightBrush.h"
 
 #define FFPARAM_THRESHOLD (0)
-#define FFPARAM_CLEAR (1)
+#define FFPARAM_DARKENING (1)
+#define FFPARAM_CLEAR (2)
 
 using namespace std;
 
@@ -41,6 +42,7 @@ static const char * fragmentShaderSource =
 "uniform sampler2D inputSampler;"
 "uniform sampler2D stateSampler;"
 "uniform float threshold;"
+"uniform float darkening;"
 "const vec4 grayScaleWeights = vec4(0.30, 0.59, 0.11, 0.0);"
 "const vec4 red = vec4(1.0, 0.0, 0.0, 1.0);"
 "const vec4 green = vec4(0.0, 1.0, 0.0, 1.0);"
@@ -54,12 +56,16 @@ static const char * fragmentShaderSource =
 "    vec4 scaledStateColor = stateColor * grayScaleWeights;"
 "    float stateLuminance = scaledStateColor.r + scaledStateColor.g + scaledStateColor.b;"
 "    if (inputLuminance >= stateLuminance) {"
-"        gl_FragColor = inputColor;"
+"        if (inputLuminance >= threshold)"
+"            gl_FragColor = inputColor;"
+"        else"
+"            gl_FragColor = inputColor * vec4(darkening, darkening, darkening, 1.0);"
 "    }"
-"    else if (stateLuminance >= threshold) {"
-"        gl_FragColor = stateColor;"
-"    } else {"
-"        gl_FragColor = inputColor;"
+"    else {"
+"        if (stateLuminance >= threshold)"
+"            gl_FragColor = stateColor;"
+"        else"
+"            gl_FragColor = inputColor * vec4(darkening, darkening, darkening, 1.0);"
 "    }"
 "}";
 
@@ -75,8 +81,10 @@ FFGLLightBrush::FFGLLightBrush()
 	SetMaxInputs(1);
 
 	// Parameters
-	threshold_ = 0.5f;
+	threshold_ = 0.5;
 	SetParamInfo(FFPARAM_THRESHOLD, "Threshold", FF_TYPE_STANDARD, threshold_);
+	darkening_ = 0.5;
+	SetParamInfo(FFPARAM_DARKENING, "Darkening", FF_TYPE_STANDARD, darkening_);
 	SetParamInfo(FFPARAM_CLEAR, "Clear", FF_TYPE_EVENT, false);
 }
 
@@ -210,6 +218,8 @@ DWORD FFGLLightBrush::InitGL(const FFGLViewportStruct *vp)
 	assert(stateSamplerLocation_ != -1);
 	thresholdLocation_ = glGetUniformLocation(shaderProgram_, "threshold");
 	assert(thresholdLocation_ != -1);
+	darkeningLocation_ = glGetUniformLocation(shaderProgram_, "darkening");
+	assert(darkeningLocation_ != -1);
 
 	// The input and state textures are always bound to texture units 0 and 1
 	// respectively.
@@ -275,8 +285,9 @@ DWORD FFGLLightBrush::ProcessOpenGL(ProcessOpenGLStruct *pGL)
 
 	glUseProgram(shaderProgram_);
 
-	// Pass the current threshold value to the shader program.
+	// Pass the current parameter values to the shader program.
 	glUniform1f(thresholdLocation_, threshold_);
+	glUniform1f(darkeningLocation_, darkening_);
 
 	// Bind input texture to texture unit 0.
 	glActiveTexture(GL_TEXTURE0);
@@ -314,6 +325,11 @@ DWORD FFGLLightBrush::GetParameter(DWORD dwIndex)
 		*((float *)(unsigned)(&dwRet)) = threshold_;
 		return dwRet;
 
+	case FFPARAM_DARKENING:
+		//sizeof(DWORD) must == sizeof(float)
+		*((float *)(unsigned)(&dwRet)) = darkening_;
+		return dwRet;
+
 	default:
 		return FF_FAIL;
 	}
@@ -326,6 +342,11 @@ DWORD FFGLLightBrush::SetParameter(const SetParameterStruct* pParam)
 		case FFPARAM_THRESHOLD:
 			//sizeof(DWORD) must == sizeof(float)
 			threshold_ = *((float *)(unsigned)&(pParam->NewParameterValue));
+			break;
+
+		case FFPARAM_DARKENING:
+			//sizeof(DWORD) must == sizeof(float)
+			darkening_ = *((float *)(unsigned)&(pParam->NewParameterValue));
 			break;
 
 		case FFPARAM_CLEAR:
