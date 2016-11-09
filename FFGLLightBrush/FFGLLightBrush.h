@@ -1,6 +1,6 @@
 // FFGLLightBrush.h - FFGL plugin for light painting
 //
-// Copyright 2015 Seppo Enarvi
+// Copyright 2015 - 2016 Seppo Enarvi
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -37,10 +37,13 @@ public:
 
 	// helper methods
 
-	void compileShader();
-	void initializeTexture(GLuint texture, GLuint width, GLuint height) const;
+	void compileShaders();
+	void initializeTexture(GLuint texture,
+		                   GLuint width,
+						   GLuint height,
+						   bool color = true) const;
 	void renderToTexture(GLuint texture) const;
-	void copyFramebuffer(GLuint src, GLuint dst) const;
+	void copyTexture(GLuint texture, GLuint dst) const;
 	void clearState();
 
 	// FreeFrame plugin methods
@@ -59,17 +62,24 @@ protected:
 	float threshold_;
 	float darkening_;
 
-	GLuint shaderProgram_;
+	GLuint velocityProgram_;
+	GLuint colorProgram_;
 	GLuint framebuffer_;
 	GLuint textures_[2];
-	int stateTextureIndex_;
-	int outputTextureIndex_;
+	int velocityStateTextureIndex_;
+	int velocityOutputTextureIndex_;
+	int colorStateTextureIndex_;
+	int colorOutputTextureIndex_;
 
-	// locations of the global GLSL variables
-	GLint inputSamplerLocation_;
-	GLint stateSamplerLocation_;
-	GLint thresholdLocation_;
-	GLint darkeningLocation_;
+	// locations of the global shader variables
+	GLint velocityShaderInputSampler_;
+	GLint velocityShaderStateSampler_;
+	GLint velocityShaderVelocitySampler_;
+	GLint colorShaderInputSampler_;
+	GLint colorShaderStateSampler_;
+	GLint colorShaderVelocitySampler_;
+	GLint colorShaderThreshold_;
+	GLint colorShaderDarkening_;
 };
 
 
